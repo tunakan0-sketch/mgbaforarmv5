@@ -5,60 +5,65 @@ on:
     branches: ci*
   release:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'mGBA バージョン'
-        required: false
-        default: '0.0.1'
 
 jobs:
   build-linux-armel:
     name: Build linux/armv5
     runs-on: ubuntu-latest
     steps:
+      # 1. リポジトリをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2. QEMU セットアップ
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+      # 3. mGBA を軽量 GUI + Tools でビルド
       - name: Build mGBA (armel)
         run: |
-          docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash -eux -c "
-cd /ws
+          docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash << 'EOF'
+          set -xeu
+          cd /ws
 
-# Debian 11 用 APT リポジトリ修正
-echo 'deb http://archive.debian.org/debian bullseye main contrib non-free' > /etc/apt/sources.list
-echo 'deb http://archive.debian.org/debian bullseye-updates main contrib non-free' >> /etc/apt/sources.list
-echo 'Acquire::Check-Valid-Until \"false\";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
+          # ===========================
+          # Debian 11 用 APT リポジトリ修正
+          # ===========================
+          sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
 
-# 必要パッケージ
-apt update
-apt -y install git build-essential cmake autoconf automake libtool pkg-config libsdl2-dev libx11-dev x11proto-dev
+          # 必要パッケージをインストール
+          apt update
+          apt -y install git build-essential cmake autoconf automake libtool pkg-config \
+                         libsdl2-dev libx11-dev x11proto-dev
 
-# ソース取得
-git clone --depth=1 https://github.com/mgba-emu/mgba.git
-cd mgba
+          # ソース取得
+          git clone --depth=1 https://github.com/mgba-emu/mgba.git
+          cd mgba
 
-mkdir -p build && cd build
+          # ビルドディレクトリ
+          mkdir -p build && cd build
 
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_INSTALL_PREFIX=/ws/armel \
-         -DENABLE_GUI=ON \
-         -DENABLE_SDL2=ON \
-         -DENABLE_SOUND=OFF \
-         -DENABLE_NETPLAY=OFF \
-         -DENABLE_RECORDING=OFF \
-         -DENABLE_TOOLS=ON \
-         -DENABLE_TESTS=OFF
+          # 軽量 GUI + Tools ビルド
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_INSTALL_PREFIX=/ws/armel \
+                   -DENABLE_GUI=ON \
+                   -DENABLE_SDL2=ON \
+                   -DENABLE_SOUND=OFF \
+                   -DENABLE_NETPLAY=OFF \
+                   -DENABLE_RECORDING=OFF \
+                   -DENABLE_TOOLS=ON \
+                   -DENABLE_TESTS=OFF
 
-make -j\$(nproc)
+          make -j$(nproc)
 
-mkdir -p /ws/armel
-cp mgba /ws/armel/mgba
-chmod +x /ws/armel/mgba
-"
+          # 成果物整理
+          mkdir -p /ws/armel
+          cp mgba /ws/armel/mgba
+          chmod +x /ws/armel/mgba
+          EOF
 
+      # 4. DEB パッケージ化（JSON 設定ファイル使用）
       - name: Prepare go-bin-deb and generate package
         run: |
           wget https://github.com/mh-cbon/go-bin-deb/releases/download/0.0.19/go-bin-deb-amd64.deb
@@ -66,11 +71,9 @@ chmod +x /ws/armel/mgba
           rm go-bin-deb-amd64.deb
 
           sudo chmod +x armel/mgba
-          go-bin-deb generate --file .github/workflows/debmgba.json \
-                              --wd . \
-                              --version "${{ github.event.inputs.version }}" \
-                              --arch armel
+          go-bin-deb generate --file .github/workflows/debmgba.json --wd . --version 0.0.1 --arch armel
 
+      # 5. 成果物を GitHub Artifacts に保存
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -79,6 +82,7 @@ chmod +x /ws/armel/mgba
             armel/mgba
             *.deb
 
+      # 6. Gemfury にアップロード
       - name: Upload package to Gemfury
         env:
           GEMFURY_TOKEN: ${{ secrets.GEMFURY_TOKEN }}
