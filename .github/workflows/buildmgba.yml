@@ -29,8 +29,11 @@ jobs:
           # ===========================
           # Debian 11 用 APT リポジトリ修正
           # ===========================
-          sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list
-          sed -i 's|security.debian.org|archive.debian.org/|g' /etc/apt/sources.list
+          cat > /etc/apt/sources.list <<'EOL'
+deb http://archive.debian.org/debian bullseye main contrib non-free
+deb http://archive.debian.org/debian bullseye-updates main contrib non-free
+EOL
+
           echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
 
           # 必要パッケージをインストール
