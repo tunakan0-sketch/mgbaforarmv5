@@ -1,95 +1,39 @@
 name: Build mGBA ARMv5
 
 on:
-  push:
-    branches: ci*
-  release:
   workflow_dispatch:
 
 jobs:
   build-linux-armel:
-    name: Build linux/armv5
     runs-on: ubuntu-latest
     steps:
-      # 1. リポジトリをチェックアウト
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      # 2. QEMU セットアップ
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v3
 
-      # 3. mGBA を軽量 GUI + Tools でビルド
       - name: Build mGBA (armel)
         run: |
-          docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash << 'EOF'
-          set -xeu
-          cd /ws
+          docker run --platform linux/arm/v5 -v $PWD:/ws arm32v5/debian:11 bash /ws/build-armv5.sh
 
-          # ===========================
-          # Debian 11 用 APT リポジトリ修正
-          # ===========================
-          sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list
-          sed -i 's|^deb .*bullseye-security.*|# &|g' /etc/apt/sources.list
-          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
-
-          # 必要パッケージをインストール
-          apt update
-          apt -y install git build-essential cmake autoconf automake libtool pkg-config \
-                         libsdl2-dev libx11-dev x11proto-dev
-
-          # ソース取得
-          git clone --depth=1 https://github.com/mgba-emu/mgba.git
-          cd mgba
-
-          # ビルドディレクトリ
-          mkdir -p build && cd build
-
-          # 軽量 GUI + Tools ビルド
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
-                   -DCMAKE_INSTALL_PREFIX=/ws/armel \
-                   -DENABLE_GUI=ON \
-                   -DENABLE_SDL2=ON \
-                   -DENABLE_SOUND=OFF \
-                   -DENABLE_NETPLAY=OFF \
-                   -DENABLE_RECORDING=OFF \
-                   -DENABLE_TOOLS=ON \
-                   -DENABLE_TESTS=OFF
-
-          make -j$(nproc)
-
-          # 成果物整理
-          mkdir -p /ws/armel
-          cp mgba /ws/armel/mgba
-          chmod +x /ws/armel/mgba
-          EOF
-
-      # 4. DEB パッケージ化（JSON 設定ファイル使用）
       - name: Prepare go-bin-deb and generate package
         run: |
           wget https://github.com/mh-cbon/go-bin-deb/releases/download/0.0.19/go-bin-deb-amd64.deb
           sudo apt -y install ./go-bin-deb-amd64.deb
           rm go-bin-deb-amd64.deb
-
           sudo chmod +x armel/mgba
           go-bin-deb generate --file .github/workflows/debmgba.json --wd . --version 0.0.1 --arch armel
 
-      # 5. 成果物を GitHub Artifacts に保存
-      - name: Save artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: artifact
           path: |
             armel/mgba
             *.deb
 
-      # 6. Gemfury にアップロード
       - name: Upload package to Gemfury
         env:
           GEMFURY_TOKEN: ${{ secrets.GEMFURY_TOKEN }}
         run: |
           for deb in *.deb; do
-            curl -F package=@$deb \
-                 -u "${GEMFURY_TOKEN}:" \
-                 https://push.fury.io/tunakan0-sketch/
+            curl -F package=@$deb -u "${GEMFURY_TOKEN}:" https://push.fury.io/tunakan0-sketch/
           done
