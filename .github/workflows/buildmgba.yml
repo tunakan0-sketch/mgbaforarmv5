@@ -26,6 +26,13 @@ jobs:
           set -xeu
           cd /ws
 
+          # ===========================
+          # Debian 11 用 APT リポジトリ修正
+          # ===========================
+          sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list
+          sed -i 's|security.debian.org|archive.debian.org/|g' /etc/apt/sources.list
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
+
           # 必要パッケージをインストール
           apt update
           apt -y install git build-essential cmake autoconf automake libtool pkg-config \
@@ -57,7 +64,7 @@ jobs:
           chmod +x /ws/armel/mgba
           EOF
 
-      # 4. DEB パッケージ化（JSON 参照あり）
+      # 4. DEB パッケージ化（JSON 設定ファイル使用）
       - name: Prepare go-bin-deb and generate package
         run: |
           wget https://github.com/mh-cbon/go-bin-deb/releases/download/0.0.19/go-bin-deb-amd64.deb
@@ -67,7 +74,7 @@ jobs:
           sudo chmod +x armel/mgba
           go-bin-deb generate --file .github/workflows/debmgba.json --wd . --version 0.0.1 --arch armel
 
-      # 5. Artifacts 保存
+      # 5. 成果物を GitHub Artifacts に保存
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
