@@ -1,4 +1,4 @@
-name: Build mGBA ARMv5 Lightweight GUI + Tools
+name: Build mGBA ARMv5
 
 on:
   push:
@@ -20,13 +20,13 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       # 3. mGBA を軽量 GUI + Tools でビルド
-      - name: Build mGBA Lightweight GUI + Tools (armel)
+      - name: Build mGBA (armel)
         run: |
           docker run --platform linux/arm/v5 -i -v $PWD:/ws debian:11 bash << 'EOF'
           set -xeu
           cd /ws
 
-          # 必要パッケージをインストール（SDL2 GUI + ビルドツール）
+          # 必要パッケージをインストール
           apt update
           apt -y install git build-essential cmake autoconf automake libtool pkg-config \
                          libsdl2-dev libx11-dev x11proto-dev
@@ -57,7 +57,7 @@ jobs:
           chmod +x /ws/armel/mgba
           EOF
 
-      # 4. DEB パッケージ化
+      # 4. DEB パッケージ化（JSON 参照あり）
       - name: Prepare go-bin-deb and generate package
         run: |
           wget https://github.com/mh-cbon/go-bin-deb/releases/download/0.0.19/go-bin-deb-amd64.deb
@@ -65,7 +65,7 @@ jobs:
           rm go-bin-deb-amd64.deb
 
           sudo chmod +x armel/mgba
-          go-bin-deb generate --file .github/workflows/deb.json --wd . --version 0.0.1 --arch armel
+          go-bin-deb generate --file .github/workflows/debmgba.json --wd . --version 0.0.1 --arch armel
 
       # 5. Artifacts 保存
       - name: Save artifacts
