@@ -24,18 +24,17 @@ jobs:
 
       - name: Build mGBA (armel)
         run: |
-          docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash -eux <<'EOF'
+          docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash -eux -c "
 cd /ws
 
 # Debian 11 用 APT リポジトリ修正
-echo "deb http://archive.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list
-echo "deb http://archive.debian.org/debian bullseye-updates main contrib non-free" >> /etc/apt/sources.list
-echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
+echo 'deb http://archive.debian.org/debian bullseye main contrib non-free' > /etc/apt/sources.list
+echo 'deb http://archive.debian.org/debian bullseye-updates main contrib non-free' >> /etc/apt/sources.list
+echo 'Acquire::Check-Valid-Until \"false\";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
 
 # 必要パッケージ
 apt update
-apt -y install git build-essential cmake autoconf automake libtool pkg-config \
-               libsdl2-dev libx11-dev x11proto-dev
+apt -y install git build-essential cmake autoconf automake libtool pkg-config libsdl2-dev libx11-dev x11proto-dev
 
 # ソース取得
 git clone --depth=1 https://github.com/mgba-emu/mgba.git
@@ -53,12 +52,12 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
          -DENABLE_TOOLS=ON \
          -DENABLE_TESTS=OFF
 
-make -j$(nproc)
+make -j\$(nproc)
 
 mkdir -p /ws/armel
 cp mgba /ws/armel/mgba
 chmod +x /ws/armel/mgba
-EOF
+"
 
       - name: Prepare go-bin-deb and generate package
         run: |
