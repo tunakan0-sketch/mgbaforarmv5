@@ -22,7 +22,7 @@ jobs:
       # 3. mGBA を軽量 GUI + Tools でビルド
       - name: Build mGBA Lightweight GUI + Tools (armel)
         run: |
-          docker run --platform linux/arm/v5 -i -v $PWD:/ws debian:stable bash << 'EOF'
+          docker run --platform linux/arm/v5 -i -v $PWD:/ws debian:11 bash << 'EOF'
           set -xeu
           cd /ws
 
