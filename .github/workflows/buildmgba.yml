@@ -1,0 +1,88 @@
+name: Build mGBA ARMv5 Lightweight GUI + Tools
+
+on:
+  push:
+    branches: ci*
+  release:
+  workflow_dispatch:
+
+jobs:
+  build-linux-armel:
+    name: Build linux/armv5
+    runs-on: ubuntu-20.04
+    steps:
+      # 1. リポジトリをチェックアウト
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. QEMU セットアップ
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 3. mGBA を軽量 GUI + Tools でビルド
+      - name: Build mGBA Lightweight GUI + Tools (armel)
+        run: |
+          docker run --platform linux/arm/v5 -i -v $PWD:/ws debian:stable bash << 'EOF'
+          set -xeu
+          cd /ws
+
+          # 必要パッケージをインストール（SDL2 GUI + ビルドツール）
+          apt update
+          apt -y install git build-essential cmake autoconf automake libtool pkg-config \
+                         libsdl2-dev libx11-dev x11proto-dev
+
+          # ソース取得
+          git clone --depth=1 https://github.com/mgba-emu/mgba.git
+          cd mgba
+
+          # ビルドディレクトリ
+          mkdir -p build && cd build
+
+          # 軽量 GUI + Tools ビルド
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_INSTALL_PREFIX=/ws/armel \
+                   -DENABLE_GUI=ON \
+                   -DENABLE_SDL2=ON \
+                   -DENABLE_SOUND=OFF \
+                   -DENABLE_NETPLAY=OFF \
+                   -DENABLE_RECORDING=OFF \
+                   -DENABLE_TOOLS=ON \
+                   -DENABLE_TESTS=OFF
+
+          make -j$(nproc)
+
+          # 成果物整理
+          mkdir -p /ws/armel
+          cp mgba /ws/armel/mgba
+          chmod +x /ws/armel/mgba
+          EOF
+
+      # 4. DEB パッケージ化
+      - name: Prepare go-bin-deb and generate package
+        run: |
+          wget https://github.com/mh-cbon/go-bin-deb/releases/download/0.0.19/go-bin-deb-amd64.deb
+          sudo apt -y install ./go-bin-deb-amd64.deb
+          rm go-bin-deb-amd64.deb
+
+          sudo chmod +x armel/mgba
+          go-bin-deb generate --file .github/workflows/deb.json --wd . --version 0.0.1 --arch armel
+
+      # 5. Artifacts 保存
+      - name: Save artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifact
+          path: |
+            armel/mgba
+            *.deb
+
+      # 6. Gemfury にアップロード
+      - name: Upload package to Gemfury
+        env:
+          GEMFURY_TOKEN: ${{ secrets.GEMFURY_TOKEN }}
+        run: |
+          for deb in *.deb; do
+            curl -F package=@$deb \
+                 -u "${GEMFURY_TOKEN}:" \
+                 https://push.fury.io/tunakan0-sketch/
+          done
