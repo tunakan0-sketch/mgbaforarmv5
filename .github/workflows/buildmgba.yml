@@ -22,50 +22,49 @@ jobs:
       # 3. mGBA を軽量 GUI + Tools でビルド
       - name: Build mGBA (armel)
         run: |
-          docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash << 'EOF'
-          set -xeu
-          cd /ws
+          docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash -eux <<'EOF'
+cd /ws
 
-          # ===========================
-          # Debian 11 用 APT リポジトリ修正
-          # ===========================
-          cat > /etc/apt/sources.list <<'EOL'
+# ===========================
+# Debian 11 用 APT リポジトリ修正
+# ===========================
+cat > /etc/apt/sources.list <<'EOL'
 deb http://archive.debian.org/debian bullseye main contrib non-free
 deb http://archive.debian.org/debian bullseye-updates main contrib non-free
 EOL
 
-          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
+echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
 
-          # 必要パッケージをインストール
-          apt update
-          apt -y install git build-essential cmake autoconf automake libtool pkg-config \
-                         libsdl2-dev libx11-dev x11proto-dev
+# 必要パッケージをインストール
+apt update
+apt -y install git build-essential cmake autoconf automake libtool pkg-config \
+               libsdl2-dev libx11-dev x11proto-dev
 
-          # ソース取得
-          git clone --depth=1 https://github.com/mgba-emu/mgba.git
-          cd mgba
+# ソース取得
+git clone --depth=1 https://github.com/mgba-emu/mgba.git
+cd mgba
 
-          # ビルドディレクトリ
-          mkdir -p build && cd build
+# ビルドディレクトリ
+mkdir -p build && cd build
 
-          # 軽量 GUI + Tools ビルド
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
-                   -DCMAKE_INSTALL_PREFIX=/ws/armel \
-                   -DENABLE_GUI=ON \
-                   -DENABLE_SDL2=ON \
-                   -DENABLE_SOUND=OFF \
-                   -DENABLE_NETPLAY=OFF \
-                   -DENABLE_RECORDING=OFF \
-                   -DENABLE_TOOLS=ON \
-                   -DENABLE_TESTS=OFF
+# 軽量 GUI + Tools ビルド
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+         -DCMAKE_INSTALL_PREFIX=/ws/armel \
+         -DENABLE_GUI=ON \
+         -DENABLE_SDL2=ON \
+         -DENABLE_SOUND=OFF \
+         -DENABLE_NETPLAY=OFF \
+         -DENABLE_RECORDING=OFF \
+         -DENABLE_TOOLS=ON \
+         -DENABLE_TESTS=OFF
 
-          make -j$(nproc)
+make -j$(nproc)
 
-          # 成果物整理
-          mkdir -p /ws/armel
-          cp mgba /ws/armel/mgba
-          chmod +x /ws/armel/mgba
-          EOF
+# 成果物整理
+mkdir -p /ws/armel
+cp mgba /ws/armel/mgba
+chmod +x /ws/armel/mgba
+EOF
 
       # 4. DEB パッケージ化（JSON 設定ファイル使用）
       - name: Prepare go-bin-deb and generate package
