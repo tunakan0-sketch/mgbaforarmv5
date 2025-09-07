@@ -1,0 +1,23 @@
+{
+    "name": "mgba",
+    "maintainer": "Takehiro Ogura <i@yude.jp>",
+    "version": "0.0.1",
+    "arch": "!arch!",
+    "files": [
+        {
+            "from": "!arch!/mgba",
+            "to": "/usr/bin",
+            "base": "!arch!",
+            "fperm": "0755"
+        }
+    ],
+    "copyrights": [
+        {
+            "files": "*",
+            "copyright": "2013-2025 mGBA contributors",
+            "license": "MPL-2.0",
+            "file": "LICENSE"
+        }
+    ],
+    "description": "mGBA: A fast, accurate, and lightweight Game Boy Advance emulator (GUI + Tools, ARMv5 build)"
+}
