@@ -9,7 +9,7 @@ on:
 jobs:
   build-linux-armel:
     name: Build linux/armv5
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       # 1. リポジトリをチェックアウト
       - name: Checkout repository
