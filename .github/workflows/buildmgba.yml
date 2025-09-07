@@ -11,27 +11,22 @@ jobs:
     name: Build linux/armv5
     runs-on: ubuntu-latest
     steps:
-      # 1. リポジトリをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. QEMU セットアップ
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 3. mGBA を軽量 GUI + Tools でビルド
       - name: Build mGBA (armel)
         run: |
           docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash -eux <<'EOF'
 cd /ws
 
 # ===========================
-# Debian 11 用 APT リポジトリ修正
+# Debian 11 用 APT リポジトリ修正 (echo)
 # ===========================
-cat > /etc/apt/sources.list <<'EOL'
-deb http://archive.debian.org/debian bullseye main contrib non-free
-deb http://archive.debian.org/debian bullseye-updates main contrib non-free
-EOL
+echo "deb http://archive.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list
+echo "deb http://archive.debian.org/debian bullseye-updates main contrib non-free" >> /etc/apt/sources.list
 
 echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
 
@@ -66,7 +61,6 @@ cp mgba /ws/armel/mgba
 chmod +x /ws/armel/mgba
 EOF
 
-      # 4. DEB パッケージ化（JSON 設定ファイル使用）
       - name: Prepare go-bin-deb and generate package
         run: |
           wget https://github.com/mh-cbon/go-bin-deb/releases/download/0.0.19/go-bin-deb-amd64.deb
@@ -76,7 +70,6 @@ EOF
           sudo chmod +x armel/mgba
           go-bin-deb generate --file .github/workflows/debmgba.json --wd . --version 0.0.1 --arch armel
 
-      # 5. 成果物を GitHub Artifacts に保存
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -85,7 +78,6 @@ EOF
             armel/mgba
             *.deb
 
-      # 6. Gemfury にアップロード
       - name: Upload package to Gemfury
         env:
           GEMFURY_TOKEN: ${{ secrets.GEMFURY_TOKEN }}
