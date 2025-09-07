@@ -5,6 +5,11 @@ on:
     branches: ci*
   release:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'mGBA バージョン'
+        required: false
+        default: '0.0.1'
 
 jobs:
   build-linux-armel:
@@ -22,15 +27,12 @@ jobs:
           docker run --platform linux/arm/v5 -i -v $PWD:/ws arm32v5/debian:11 bash -eux <<'EOF'
 cd /ws
 
-# ===========================
-# Debian 11 用 APT リポジトリ修正 (echo)
-# ===========================
+# Debian 11 用 APT リポジトリ修正
 echo "deb http://archive.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list
 echo "deb http://archive.debian.org/debian bullseye-updates main contrib non-free" >> /etc/apt/sources.list
-
 echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-check-valid-until
 
-# 必要パッケージをインストール
+# 必要パッケージ
 apt update
 apt -y install git build-essential cmake autoconf automake libtool pkg-config \
                libsdl2-dev libx11-dev x11proto-dev
@@ -39,10 +41,8 @@ apt -y install git build-essential cmake autoconf automake libtool pkg-config \
 git clone --depth=1 https://github.com/mgba-emu/mgba.git
 cd mgba
 
-# ビルドディレクトリ
 mkdir -p build && cd build
 
-# 軽量 GUI + Tools ビルド
 cmake .. -DCMAKE_BUILD_TYPE=Release \
          -DCMAKE_INSTALL_PREFIX=/ws/armel \
          -DENABLE_GUI=ON \
@@ -55,7 +55,6 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
 
 make -j$(nproc)
 
-# 成果物整理
 mkdir -p /ws/armel
 cp mgba /ws/armel/mgba
 chmod +x /ws/armel/mgba
@@ -68,7 +67,10 @@ EOF
           rm go-bin-deb-amd64.deb
 
           sudo chmod +x armel/mgba
-          go-bin-deb generate --file .github/workflows/debmgba.json --wd . --version 0.0.1 --arch armel
+          go-bin-deb generate --file .github/workflows/debmgba.json \
+                              --wd . \
+                              --version "${{ github.event.inputs.version }}" \
+                              --arch armel
 
       - name: Save artifacts
         uses: actions/upload-artifact@v4
